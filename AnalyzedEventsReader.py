@@ -90,7 +90,7 @@ class AnalyzedDataReader(object):
         self.db._dbCon.commit()  # commit changes
 
         self.process_nev = 10000
-        #determine retrieve event boundaries
+        # determine retrieve event boundaries
         self.nev_bin = int(self.tot_nev / self.process_nev) + 2
         if self.tot_nev % self.process_nev == 0: self.nev_bin -= 1
         self.event_bound_hydro = ones(self.nev_bin)
@@ -114,7 +114,7 @@ class AnalyzedDataReader(object):
                 - sum(urqmd_nev_array[0:self.event_bound_hydro[ibin] - 1]))
 
 
-    ###########################################################################
+    # ##########################################################################
     # functions to get number of events
     ########################################################################### 
     def get_number_of_hydro_events(self):
@@ -362,7 +362,7 @@ class AnalyzedDataReader(object):
         particle_yield = particle_yield / self.tot_nev * drap
         particle_yield_err = (
             (sqrt(particle_yield_err / self.tot_nev - particle_yield ** 2)
-            / sqrt(self.tot_nev - 1)) * drap)
+             / sqrt(self.tot_nev - 1)) * drap)
         return (mean_rap, particle_yield, particle_yield_err)
 
     ###########################################################################
@@ -452,7 +452,41 @@ class AnalyzedDataReader(object):
 
     ###########################################################################
     # functions to collect particle anisotropic flows
-    ########################################################################### 
+    ###########################################################################
+    def get_all_qn_vectors(self, particle_name, order):
+        """
+        This function return p_T-integrated Qn vectors for all events
+        :param particle_name: particle species
+        :param order: harmonic order
+        """
+        analyzed_table_name_inte = 'flow_Qn_vectors'
+        pid = self.pid_lookup[particle_name]
+        temp_data = array(self.db.executeSQLquery(
+            "select Nparticle, Qn_real, Qn_imag from %s "
+            "where pid = %d and weight_type = '1' and n = %d "
+            % (analyzed_table_name_inte, pid, order)
+        ).fetchall())
+        return temp_data
+
+    def get_all_qn_vectors_pTdiff(self, particle_name, order):
+        """
+        This function return p_T-differential Qn vectors for all events
+        :param particle_name: particle species
+        :param order: harmonic order
+        """
+        analyzed_table_name_diff = 'flow_Qn_vectors_pTdiff'
+        pid = self.pid_lookup[particle_name]
+        npT = len(self.db.executeSQLquery(
+            "select pT from %s where hydro_event_id = %d and "
+            "urqmd_event_id = %d and pid = %d and weight_type = '1' and n = %d"
+            % (analyzed_table_name_diff, 1, 1, pid, order)).fetchall())
+        temp_data = array(self.db.executeSQLquery(
+            "select pT, Nparticle, Qn_real, Qn_imag from %s "
+            "where pid = %d and weight_type = '1' and n = %d "
+            % (analyzed_table_name_diff, pid, order)
+        ).fetchall())
+        return npT, temp_data
+
     def get_avg_diffvn_flow(
             self, particle_name, order, psi_r=0.,
             pT_range=linspace(0.0, 3.0, 31)):
@@ -1851,7 +1885,7 @@ if __name__ == "__main__":
     if len(argv) < 2:
         printHelpMessageandQuit()
     test = AnalyzedDataReader(str(argv[1]))
-    #print(test.get_ptinte_two_flow_correlation('pion_p', 'event_plane', 2, -2))
+    # print(test.get_ptinte_two_flow_correlation('pion_p', 'event_plane', 2, -2))
     #print(test.get_ptinte_two_flow_correlation('pion_p', 'scalar_product', 2, -2))
     #print(test.get_ptinte_three_flow_correlation('pion_p', 'event_plane', 
     #                                             2, 3, -5))
@@ -1868,7 +1902,8 @@ if __name__ == "__main__":
     print(
         test.get_intevn_flow('pion_p', 'event_plane', 2, pT_range=(0.3, 3.0)))
     print(
-        test.get_intevn_flow('pion_p', 'scalar_product', 2, pT_range=(0.3, 3.0)))
+        test.get_intevn_flow('pion_p', 'scalar_product', 2,
+                             pT_range=(0.3, 3.0)))
     #print(test.get_diffvn_2pc_flow('pion_p', 2, 
     #    pT_range = linspace(0.0, 2.0, 21)))
     #print(test.get_intevn_2pc_flow('pion_p', 2, pT_range = (0.3, 3.0)))
