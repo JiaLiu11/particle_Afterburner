@@ -377,7 +377,7 @@ class ParticleFilter:
                             particle_data = particle_info[idx, 1:9]
                             particle_group.create_dataset(
                                 "particle_info", data=particle_data,
-                                compression='gzip')
+                                compression='gzip', compression_opts=9)
                     print(
                         "processing OSCAR event %d finished." % urqmd_event_id)
                     urqmd_event_id += 1
@@ -558,7 +558,7 @@ class ParticleFilter:
                             particle_data = particle_info[idx, 1:9]
                             particle_group.create_dataset(
                                 "particle_info", data=particle_data,
-                                compression='gzip')
+                                compression='gzip', compression_opts=9)
                     print(
                         "processing UrQMD event %d finished." % urqmd_event_id)
                     urqmd_event_id += 1
