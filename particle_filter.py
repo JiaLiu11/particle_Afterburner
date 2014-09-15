@@ -373,8 +373,13 @@ class ParticleFilter:
                             particle_name = self.pdg_pid_dict[pid_list[ipid]]
                             particle_group = urqmd_event_group.create_group(
                                 "%s" % particle_name)
+                            particle_group.attrs.create(
+                                'mass', self.mass_pid_dict[particle_name])
                             idx = particle_info[:, 0] == pid_list[ipid]
                             particle_data = particle_info[idx, 1:9]
+                            n_particle = len(particle_data[:, 0])
+                            particle_group.attrs.create(
+                                'N_particle', n_particle)
                             particle_group.create_dataset(
                                 "particle_info", data=particle_data,
                                 compression='gzip', compression_opts=9)
@@ -554,8 +559,13 @@ class ParticleFilter:
                             particle_name = self.urqmd_pid_dict[pid_list[ipid]]
                             particle_group = urqmd_event_group.create_group(
                                 "%s" % particle_name)
+                            particle_group.attrs.create(
+                                'mass', self.mass_pid_dict[particle_name])
                             idx = particle_info[:, 0] == pid_list[ipid]
                             particle_data = particle_info[idx, 1:9]
+                            n_particle = len(particle_data[:, 0])
+                            particle_group.attrs.create(
+                                'N_particle', n_particle)
                             particle_group.create_dataset(
                                 "particle_info", data=particle_data,
                                 compression='gzip', compression_opts=9)
@@ -742,6 +752,9 @@ class ParticleFilter:
                                 else:
                                     data = np.append(data, data_temp, axis=0)
                         if len(data) > 0:
+                            n_particles = len(data[:, 0])
+                            output_part_grp.attrs.create(
+                                "N_particles", n_particles)
                             qn_inte_y, qn_inte_eta, qn_diff_y, qn_diff_eta = (
                                     self.compute_qn_vectors(data))
                             output_part_grp.create_dataset(
@@ -761,6 +774,11 @@ class ParticleFilter:
                                 input_h5[hydro_key][urqmd_key][particle_key])
                             data = part_grp.get('particle_info')
                         if len(data) > 0:
+                            n_particles = len(data[:, 0])
+                            output_part_grp.attrs.create(
+                                "N_particles", n_particles)
+                            output_part_grp.attrs.create(
+                                "mass", self.mass_pid_dict[particle_key])
                             qn_inte_y, qn_inte_eta, qn_diff_y, qn_diff_eta = (
                                 self.compute_qn_vectors(data))
                             output_part_grp.create_dataset(
