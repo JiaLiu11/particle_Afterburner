@@ -551,7 +551,7 @@ class ParticleFilter:
                             "urqmd_event_%d" % urqmd_event_id))
                         pid_list = list(set(list(particle_info[:, 0])))
                         for ipid in range(len(pid_list)):
-                            particle_name = self.pdg_pid_dict[pid_list[ipid]]
+                            particle_name = self.urqmd_pid_dict[pid_list[ipid]]
                             particle_group = urqmd_event_group.create_group(
                                 "%s" % particle_name)
                             idx = particle_info[:, 0] == pid_list[ipid]
@@ -784,10 +784,10 @@ if __name__ == "__main__":
     except IndexError:
         print("Usage: particle_filter.py folder")
         exit(0)
-    #test = ParticleFilter()
-    #test.collect_particle_info(folder, file_format='UrQMD')
-    #test.analyze_flow_observables('particles', 'analyzed')
     test = ParticleFilter()
-    test.collect_particle_info(folder, result_filename='OSCAR.DAT', 
-        file_format='OSCAR', out_filename="particles_OSCAR")
-    test.analyze_flow_observables('particles_OSCAR', 'analyzed_OSCAR')
+    test.collect_particle_info(folder, file_format='UrQMD')
+    test.analyze_flow_observables('particles', 'analyzed')
+    #test = ParticleFilter()
+    #test.collect_particle_info(folder, result_filename='OSCAR.DAT', 
+    #    file_format='OSCAR', out_filename="particles_OSCAR")
+    #test.analyze_flow_observables('particles_OSCAR', 'analyzed_OSCAR')
