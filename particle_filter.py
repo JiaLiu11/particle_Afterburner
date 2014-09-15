@@ -574,7 +574,6 @@ class ParticleFilter:
         if self.enable_sqlite:
             of_db.closeConnection()
 
-
     def compute_qn_vectors(self, data_set):
         """
             compute particle spectrum and qn vectors for the given data_set
@@ -654,7 +653,6 @@ class ParticleFilter:
         return(p_t_inte_res_y.transpose(), p_t_inte_res_eta.transpose(),
                p_t_diff_res_y.transpose(), p_t_diff_res_eta.transpose())
 
-
     def collect_particle_info(
             self, folder, subfolder_pattern="event-(\d*)",
             result_filename="particle_list.dat", file_format='UrQMD',
@@ -707,15 +705,11 @@ class ParticleFilter:
     def analyze_flow_observables(self, input_filename, output_filename):
         """
             This function performs analysis for single particle spectrum
-            and its anisotropy, qn vectors.
+            and its anisotropy, qn vectors from the hdf5 datafile.
         """
-        if self.enable_hdf5:
-            import h5py
-            input_h5 = h5py.File("%s.hdf5" % input_filename, 'r')
-            output_h5 = h5py.File("%s.hdf5" % output_filename, 'w')
-        if self.enable_sqlite:
-            from DBR import SqliteDB
-
+        import h5py
+        input_h5 = h5py.File("%s.hdf5" % input_filename, 'r')
+        output_h5 = h5py.File("%s.hdf5" % output_filename, 'w')
 
         particle_to_analysis = ['charged', 'pion_p']
         hydro_event_list = input_h5.keys()
