@@ -13,10 +13,9 @@ class ParticleFilter:
         defined by the user from the UrQMD or OSCAR outputs
     """
 
-    def __init__(self, input_filename, output_filename, enable_hdf5=True):
-        self.input_file = input_filename
+    def __init__(self, enable_hdf5=True):
         self.enable_hdf5 = enable_hdf5
-        self.output_filename = output_filename
+        self.output_filename = "particles"
 
         # particle_name, pid
         self.pid_dict = {
@@ -336,9 +335,12 @@ class ParticleFilter:
                     pid_list = list(set(list(particle_info[:, 0])))
                     for ipid in range(len(pid_list)):
                         particle_name = self.pdg_pid_dict[pid_list[ipid]]
+                        particle_group = urqmd_event_group.create_group(
+                            "%s" % particle_name)
                         idx = particle_info[:, 0] == pid_list[ipid]
-                        urqmd_event_group.create_dataset(
-                            "%s" % particle_name, data=particle_info[idx, 1:9],
+                        particle_data = particle_info[idx, 1:9]
+                        particle_group.create_dataset(
+                            "particle_info", data=particle_data,
                             compression='gzip')
                     print(
                         "processing OSCAR event %d finished." % urqmd_event_id)
@@ -574,11 +576,13 @@ class ParticleFilter:
     def collect_particle_info(
             self, folder, subfolder_pattern="event-(\d*)",
             result_filename="particle_list.dat", file_format='UrQMD',
+            out_filename="particles",
             particles_to_collect=['charged'], rap_range=(-2.5, 2.5)):
         """
             This function collects particles momentum and space-time
             information from UrQMD outputs into a database
         """
+        self.output_filename = out_filename
         # get list of (matched subfolders, event id)
         match_pattern = re.compile(subfolder_pattern)
         matched_subfolders = []
@@ -651,11 +655,11 @@ class ParticleFilter:
                                 part_grp = (
                                     input_h5[hydro_key][urqmd_key][part_key])
                                 data_temp = part_grp.get('particle_info')
-                            if i_flag == 0:
-                                data = data_temp
-                                i_flag = 1
-                            else:
-                                data = np.append(data, data_temp, axis=0)
+                                if i_flag == 0:
+                                    data = data_temp
+                                    i_flag = 1
+                                else:
+                                    data = np.append(data, data_temp, axis=0)
                         if len(data) > 0:
                             qn_inte_y, qn_inte_eta, qn_diff_y, qn_diff_eta = (
                                     self.compute_qn_vectors(data))
@@ -699,6 +703,10 @@ if __name__ == "__main__":
     except IndexError:
         print("Usage: particle_filter.py folder")
         exit(0)
-    test = ParticleFilter("particle_list.dat", 'particles')
+    #test = ParticleFilter()
     #test.collect_particle_info(folder, file_format='UrQMD')
-    test.analyze_flow_observables('particles', 'analyzed')
+    #test.analyze_flow_observables('particles', 'analyzed')
+    test = ParticleFilter()
+    test.collect_particle_info(folder, result_filename='OSCAR.DAT', 
+        file_format='OSCAR', out_filename="particles_OSCAR")
+    test.analyze_flow_observables('particles_OSCAR', 'analyzed_OSCAR')
