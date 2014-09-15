@@ -3,7 +3,6 @@
 from sys import argv, exit
 from os import path, listdir
 import numpy as np
-import h5py
 import re
 
 
@@ -13,8 +12,9 @@ class ParticleFilter:
         defined by the user from the UrQMD or OSCAR outputs
     """
 
-    def __init__(self, enable_hdf5=True):
+    def __init__(self, enable_hdf5=True, enable_sqlite=True):
         self.enable_hdf5 = enable_hdf5
+        self.enable_sqlite = enable_sqlite
         self.output_filename = "particles"
 
         # particle_name, pid
@@ -232,7 +232,34 @@ class ParticleFilter:
             database for one hydro event with hydro_event_id.
             It assigns each UrQMD run an additional urqmd_event_id.
         """
-        of_hdf5 = h5py.File("%s.hdf5" % self.output_filename, 'w')
+        if self.enable_hdf5:
+            import h5py
+            of_hdf5 = h5py.File("%s.hdf5" % self.output_filename, 'w')
+            hydro_event_group = (
+                of_hdf5.create_group("hydro_event_%d" % int(hydro_event_id)))
+        if self.enable_sqlite:
+            from DBR import SqliteDB
+            of_db = SqliteDB("%s.db" % self.output_filename)
+            # first write the pid_lookup table, makes sure there is only one
+            # such table
+            if of_db.createTableIfNotExists(
+                    "pid_lookup", (("name", "text"), ("pid", "integer"))):
+                of_db.insertIntoTable(
+                    "pid_lookup", list(self.pid_dict.items()))
+            # write the particle mass table
+            if of_db.createTableIfNotExists(
+                    "pid_Mass", (("name", "text"), ("mass", "real"))):
+                of_db.insertIntoTable(
+                    "pid_Mass", list(self.mass_pid_dict.items()))
+            # create tables
+            of_db.createTableIfNotExists(
+                "particle_list", (
+                    ("hydroEvent_id", "integer"),
+                    ("UrQMDEvent_id", "interger"), ("pid", "integer"),
+                    ("tau", "real"), ("x", "real"), ("y", "real"),
+                    ("eta", "real"), ("pT", "real"), ("phi_p", "real"),
+                    ("rapidity", "real"), ("pseudorapidity", "real"))
+            )
 
         pid_to_collect = []
         for aparticle in particles_to_collect:
@@ -241,9 +268,6 @@ class ParticleFilter:
                     map(lambda x: self.pid_dict[x], self.charged_hadron_list))
             else:
                 pid_to_collect += [self.pid_dict[aparticle]]
-
-        hydro_event_group = (
-            of_hdf5.create_group("hydro_event_%d" % int(hydro_event_id)))
 
         # check input file
         urqmd_outputfile = path.join(folder, result_filename)
@@ -322,6 +346,16 @@ class ParticleFilter:
                                 particle_info.append(
                                     [pdg_id, tau, x_rotated, y_rotated, eta,
                                      p_t, phi, rap, pseudorap])
+                                # output data for sqlite database
+                                if self.enable_sqlite:
+                                    of_db.insertIntoTable(
+                                        "particle_list",
+                                        (hydro_event_id, urqmd_event_id,
+                                         database_pid, float(tau),
+                                         float(x_rotated), float(y_rotated),
+                                         float(eta), float(p_t), float(phi),
+                                         float(rap), float(pseudorap))
+                                    )
                     except ValueError as e:
                         print(
                             "The file " + urqmd_outputfile +
@@ -329,19 +363,21 @@ class ParticleFilter:
                         exit(e)
                     data_row_count -= 1
                 if data_row_count == 0:
+                    # store data
                     particle_info = np.asarray(particle_info)
-                    urqmd_event_group = (hydro_event_group.create_group(
-                        "urqmd_event_%d" % urqmd_event_id))
-                    pid_list = list(set(list(particle_info[:, 0])))
-                    for ipid in range(len(pid_list)):
-                        particle_name = self.pdg_pid_dict[pid_list[ipid]]
-                        particle_group = urqmd_event_group.create_group(
-                            "%s" % particle_name)
-                        idx = particle_info[:, 0] == pid_list[ipid]
-                        particle_data = particle_info[idx, 1:9]
-                        particle_group.create_dataset(
-                            "particle_info", data=particle_data,
-                            compression='gzip')
+                    if self.enable_hdf5:
+                        urqmd_event_group = (hydro_event_group.create_group(
+                            "urqmd_event_%d" % urqmd_event_id))
+                        pid_list = list(set(list(particle_info[:, 0])))
+                        for ipid in range(len(pid_list)):
+                            particle_name = self.pdg_pid_dict[pid_list[ipid]]
+                            particle_group = urqmd_event_group.create_group(
+                                "%s" % particle_name)
+                            idx = particle_info[:, 0] == pid_list[ipid]
+                            particle_data = particle_info[idx, 1:9]
+                            particle_group.create_dataset(
+                                "particle_info", data=particle_data,
+                                compression='gzip')
                     print(
                         "processing OSCAR event %d finished." % urqmd_event_id)
                     urqmd_event_id += 1
@@ -350,7 +386,12 @@ class ParticleFilter:
                     header_count = 0  # not pointing at the header line yet
                     read_mode = "header_second_part"
 
-        of_hdf5.flush()
+        if self.enable_hdf5:
+            of_hdf5.flush()
+            of_hdf5.close()
+        # close connection to commit changes
+        if self.enable_sqlite:
+            of_db.closeConnection()
 
     def collect_particles_urqmd(self, folder, hydro_event_id, result_filename,
                                 particles_to_collect, rap_type, rap_range):
@@ -360,7 +401,34 @@ class ParticleFilter:
             database for one hydro event with hydro_event_id.
             It assigns each UrQMD run an additional urqmd_event_id.
         """
-        of_hdf5 = h5py.File("%s.hdf5" % self.output_filename, 'w')
+        if self.enable_hdf5:
+            import h5py
+            of_hdf5 = h5py.File("%s.hdf5" % self.output_filename, 'w')
+            hydro_event_group = (
+                of_hdf5.create_group("hydro_event_%d" % int(hydro_event_id)))
+        if self.enable_sqlite:
+            from DBR import SqliteDB
+            of_db = SqliteDB("%s.db" % self.output_filename)
+            # first write the pid_lookup table, makes sure there is only one
+            # such table
+            if of_db.createTableIfNotExists(
+                    "pid_lookup", (("name", "text"), ("pid", "integer"))):
+                of_db.insertIntoTable(
+                    "pid_lookup", list(self.pid_dict.items()))
+            # write the particle mass table
+            if of_db.createTableIfNotExists(
+                    "pid_Mass", (("name", "text"), ("mass", "real"))):
+                of_db.insertIntoTable(
+                    "pid_Mass", list(self.mass_pid_dict.items()))
+            # create tables
+            of_db.createTableIfNotExists(
+                "particle_list", (
+                    ("hydroEvent_id", "integer"),
+                    ("UrQMDEvent_id", "interger"), ("pid", "integer"),
+                    ("tau", "real"), ("x", "real"), ("y", "real"),
+                    ("eta", "real"), ("pT", "real"), ("phi_p", "real"),
+                    ("rapidity", "real"), ("pseudorapidity", "real"))
+            )
 
         pid_to_collect = []
         for aparticle in particles_to_collect:
@@ -369,9 +437,6 @@ class ParticleFilter:
                     map(lambda x: self.pid_dict[x], self.charged_hadron_list))
             else:
                 pid_to_collect += [self.pid_dict[aparticle]]
-
-        hydro_event_group = (
-            of_hdf5.create_group("hydro_event_%d" % int(hydro_event_id)))
 
         # check input file
         urqmd_outputfile = path.join(folder, result_filename)
@@ -463,6 +528,16 @@ class ParticleFilter:
                                 particle_info.append(
                                     [urqmd_pid, tau, x_rotated, y_rotated, eta,
                                      p_t, phi, rap, pseudorap])
+                                # output data for sqlite database
+                                if self.enable_sqlite:
+                                    of_db.insertIntoTable(
+                                        "particle_list",
+                                        (hydro_event_id, urqmd_event_id,
+                                         database_pid, float(tau),
+                                         float(x_rotated), float(y_rotated),
+                                         float(eta), float(p_t), float(phi),
+                                         float(rap), float(pseudorap))
+                                    )
                     except ValueError as e:
                         print(
                             "The file " + urqmd_outputfile +
@@ -471,18 +546,19 @@ class ParticleFilter:
                     data_row_count -= 1
                 if data_row_count == 1:
                     particle_info = np.asarray(particle_info)
-                    urqmd_event_group = (hydro_event_group.create_group(
-                        "urqmd_event_%d" % urqmd_event_id))
-                    pid_list = list(set(list(particle_info[:, 0])))
-                    for ipid in range(len(pid_list)):
-                        particle_name = self.urqmd_pid_dict[pid_list[ipid]]
-                        particle_group = urqmd_event_group.create_group(
-                            "%s" % particle_name)
-                        idx = particle_info[:, 0] == pid_list[ipid]
-                        particle_data = particle_info[idx, 1:9]
-                        particle_group.create_dataset(
-                            "particle_info", data=particle_data,
-                            compression='gzip')
+                    if self.enable_hdf5:
+                        urqmd_event_group = (hydro_event_group.create_group(
+                            "urqmd_event_%d" % urqmd_event_id))
+                        pid_list = list(set(list(particle_info[:, 0])))
+                        for ipid in range(len(pid_list)):
+                            particle_name = self.pdg_pid_dict[pid_list[ipid]]
+                            particle_group = urqmd_event_group.create_group(
+                                "%s" % particle_name)
+                            idx = particle_info[:, 0] == pid_list[ipid]
+                            particle_data = particle_info[idx, 1:9]
+                            particle_group.create_dataset(
+                                "particle_info", data=particle_data,
+                                compression='gzip')
                     print(
                         "processing UrQMD event %d finished." % urqmd_event_id)
                     urqmd_event_id += 1
@@ -491,7 +567,13 @@ class ParticleFilter:
                     header_count = 0  # not pointing at the header line yet
                     read_mode = "header_first_part"
 
-        of_hdf5.flush()
+        if self.enable_hdf5:
+            of_hdf5.flush()
+            of_hdf5.close()
+        # close connection to commit changes
+        if self.enable_sqlite:
+            of_db.closeConnection()
+
 
     def compute_qn_vectors(self, data_set):
         """
@@ -627,8 +709,13 @@ class ParticleFilter:
             This function performs analysis for single particle spectrum
             and its anisotropy, qn vectors.
         """
-        input_h5 = h5py.File("%s.hdf5" % input_filename, 'r')
-        output_h5 = h5py.File("%s.hdf5" % output_filename, 'w')
+        if self.enable_hdf5:
+            import h5py
+            input_h5 = h5py.File("%s.hdf5" % input_filename, 'r')
+            output_h5 = h5py.File("%s.hdf5" % output_filename, 'w')
+        if self.enable_sqlite:
+            from DBR import SqliteDB
+
 
         particle_to_analysis = ['charged', 'pion_p']
         hydro_event_list = input_h5.keys()
