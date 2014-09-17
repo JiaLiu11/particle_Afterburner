@@ -17,6 +17,9 @@ class ParticleFilter:
         self.enable_sqlite = enable_sqlite
         self.output_filename = "particles"
         self.flow_analyze_order = 7
+        self.p_t_min = 0.0
+        self.p_t_max = 3.0
+        self.n_p_t = 30
 
         # particle_name, pid
         self.pid_dict = {
@@ -384,8 +387,9 @@ class ParticleFilter:
                             particle_group.create_dataset(
                                 "particle_info", data=particle_data,
                                 compression='gzip', compression_opts=9)
-                    print(
-                        "processing OSCAR event %d finished." % urqmd_event_id)
+                    if urqmd_event_id % 100 == 0:
+                        print("processing OSCAR events %d finished."
+                              % urqmd_event_id)
                     urqmd_event_id += 1
                     # switch back to header mode
                     data_row_count = 0
@@ -572,8 +576,9 @@ class ParticleFilter:
                             particle_group.create_dataset(
                                 "particle_info", data=particle_data,
                                 compression='gzip', compression_opts=9)
-                    print(
-                        "processing UrQMD event %d finished." % urqmd_event_id)
+                    if urqmd_event_id % 100 == 0:
+                        print("processing UrQMD events %d finished."
+                              % urqmd_event_id)
                     urqmd_event_id += 1
                     # switch back to header mode
                     data_row_count = 0
@@ -595,9 +600,9 @@ class ParticleFilter:
         qn_y = np.zeros([n_order, 5]) * (1 + 1j)
         qn_eta = np.zeros([n_order, 5]) * (1 + 1j)
 
-        p_t_min = 0.0
-        p_t_max = 3.0
-        n_p_t = 30
+        p_t_min = self.p_t_min
+        p_t_max = self.p_t_max
+        n_p_t = self.n_p_t
         p_t = np.linspace(p_t_min, p_t_max, n_p_t + 1)
         dp_t = p_t[1] - p_t[0]
         p_t_bin = (p_t[0:-1] + p_t[1:]) / 2.
@@ -721,6 +726,8 @@ class ParticleFilter:
             store the particle spectra and flow data into hdf5 file
         """
         n_order = self.flow_analyze_order
+        p_t = np.linspace(self.p_t_min, self.p_t_max, self.n_p_t + 1)
+        event_grp.attrs.create('pT', p_t)
         table_names = ['y', 'eta', 'y_pT', 'eta_pT']
         for i_particle in range(len(particle_to_analysis)):
             particle_key = particle_to_analysis[i_particle]
@@ -769,7 +776,8 @@ class ParticleFilter:
             urqmd_event_list = input_h5[hydro_key].keys()
             output_hydro_grp = output_h5.create_group(hydro_key)
             for i_urqmd in range(len(urqmd_event_list)):
-                print "Analyzing UrQMD event: %d" % i_urqmd
+                if i_urqmd % 100 == 0:
+                    print "Analyzing UrQMD events: %d" % i_urqmd
                 urqmd_key = urqmd_event_list[i_urqmd]
                 particle_list = input_h5[hydro_key][urqmd_key].keys()
                 initial = 1
