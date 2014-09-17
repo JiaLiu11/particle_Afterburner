@@ -113,8 +113,7 @@ class AnalyzedDataReader(object):
                 ibin * self.process_nev
                 - sum(urqmd_nev_array[0:self.event_bound_hydro[ibin] - 1]))
 
-
-    # ##########################################################################
+    ###########################################################################
     # functions to get number of events
     ########################################################################### 
     def get_number_of_hydro_events(self):

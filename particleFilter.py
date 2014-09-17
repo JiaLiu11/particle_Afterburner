@@ -16,6 +16,7 @@ class ParticleFilter:
         self.enable_hdf5 = enable_hdf5
         self.enable_sqlite = enable_sqlite
         self.output_filename = "particles"
+        self.flow_analyze_order = 7
 
         # particle_name, pid
         self.pid_dict = {
@@ -134,7 +135,7 @@ class ParticleFilter:
         }
 
         # pdg pid Dictionary
-        #pdg id#, particle name
+        # pdg id#, particle name
         self.pdg_pid_dict = {
             211: "pion_p",
             -211: "pion_m",
@@ -234,11 +235,13 @@ class ParticleFilter:
         """
         if self.enable_hdf5:
             import h5py
+
             of_hdf5 = h5py.File("%s.hdf5" % self.output_filename, 'w')
             hydro_event_group = (
                 of_hdf5.create_group("hydro_event_%d" % int(hydro_event_id)))
         if self.enable_sqlite:
             from DBR import SqliteDB
+
             of_db = SqliteDB("%s.db" % self.output_filename)
             # first write the pid_lookup table, makes sure there is only one
             # such table
@@ -408,11 +411,13 @@ class ParticleFilter:
         """
         if self.enable_hdf5:
             import h5py
+
             of_hdf5 = h5py.File("%s.hdf5" % self.output_filename, 'w')
             hydro_event_group = (
                 of_hdf5.create_group("hydro_event_%d" % int(hydro_event_id)))
         if self.enable_sqlite:
             from DBR import SqliteDB
+
             of_db = SqliteDB("%s.db" % self.output_filename)
             # first write the pid_lookup table, makes sure there is only one
             # such table
@@ -588,23 +593,23 @@ class ParticleFilter:
         """
             compute particle spectrum and qn vectors for the given data_set
         """
-        n_order = 10
-        qn_y = np.zeros([n_order, 5])*(1+1j)
-        qn_eta = np.zeros([n_order, 5])*(1+1j)
+        n_order = self.flow_analyze_order
+        qn_y = np.zeros([n_order, 5]) * (1 + 1j)
+        qn_eta = np.zeros([n_order, 5]) * (1 + 1j)
 
         p_t_min = 0.0
         p_t_max = 3.0
         n_p_t = 30
         p_t = np.linspace(p_t_min, p_t_max, n_p_t + 1)
         dp_t = p_t[1] - p_t[0]
-        p_t_bin = (p_t[0:-1] + p_t[1:])/2.
-        qn_p_t_y = np.zeros([n_order, n_p_t])*(1+1j)
-        qn_p_t_eta = np.zeros([n_order, n_p_t])*(1+1j)
+        p_t_bin = (p_t[0:-1] + p_t[1:]) / 2.
+        qn_p_t_y = np.zeros([n_order, n_p_t]) * (1 + 1j)
+        qn_p_t_eta = np.zeros([n_order, n_p_t]) * (1 + 1j)
 
-        p_t_inte_res_y = np.zeros([2*n_order+1, 5])
-        p_t_inte_res_eta = np.zeros([2*n_order+1, 5])
-        p_t_diff_res_y = np.zeros([2*n_order+1, n_p_t])
-        p_t_diff_res_eta = np.zeros([2*n_order+1, n_p_t])
+        p_t_inte_res_y = np.zeros([2 * n_order + 1, 5])
+        p_t_inte_res_eta = np.zeros([2 * n_order + 1, 5])
+        p_t_diff_res_y = np.zeros([2 * n_order + 1, n_p_t])
+        p_t_diff_res_eta = np.zeros([2 * n_order + 1, n_p_t])
 
         for i in range(len(data_set[:, 0])):
             particle_p_t = data_set[i, 4]
@@ -617,51 +622,51 @@ class ParticleFilter:
                     idx_y = int(particle_y + 2.5)
                     for i_order in range(n_order):
                         qn_y[i_order, idx_y] += (
-                            np.exp(1j*i_order*particle_phi))
+                            np.exp(1j * i_order * particle_phi))
                 if -2.5 <= particle_eta < 2.5:
                     idx_eta = int(particle_eta + 2.5)
                     for i_order in range(n_order):
                         qn_eta[i_order, idx_eta] += (
-                            np.exp(1j*i_order*particle_phi))
+                            np.exp(1j * i_order * particle_phi))
 
                 # collect pT-differential variables
-                idx = int((particle_p_t - p_t[0])/dp_t)
+                idx = int((particle_p_t - p_t[0]) / dp_t)
                 if -0.5 <= particle_y <= 0.5:
                     for i_order in range(n_order):
                         qn_p_t_y[i_order, idx] += (
-                            np.exp(1j*i_order*particle_phi))
+                            np.exp(1j * i_order * particle_phi))
                 if -0.5 <= particle_eta <= 0.5:
                     for i_order in range(n_order):
                         qn_p_t_eta[i_order, idx] += (
-                            np.exp(1j*i_order*particle_phi))
+                            np.exp(1j * i_order * particle_phi))
 
         # normalize qn vectors
         p_t_diff_res_y[0, :] = p_t_bin
         p_t_diff_res_eta[0, :] = p_t_bin
         for i_order in range(1, n_order):
-            qn_y[i_order, :] = qn_y[i_order, :]/(qn_y[0, :] + 1e-15)
-            qn_eta[i_order, :] = qn_eta[i_order, :]/(qn_eta[0, :] + 1e-15)
+            qn_y[i_order, :] = qn_y[i_order, :] / (qn_y[0, :] + 1e-15)
+            qn_eta[i_order, :] = qn_eta[i_order, :] / (qn_eta[0, :] + 1e-15)
             qn_p_t_y[i_order, :] = (
-                qn_p_t_y[i_order, :]/(qn_p_t_y[0, :] + 1e-15))
+                qn_p_t_y[i_order, :] / (qn_p_t_y[0, :] + 1e-15))
             qn_p_t_eta[i_order, :] = (
-                qn_p_t_eta[i_order, :]/(qn_p_t_eta[0, :] + 1e-15))
+                qn_p_t_eta[i_order, :] / (qn_p_t_eta[0, :] + 1e-15))
 
         for i_order in range(n_order):
-            p_t_inte_res_y[2*i_order+1:2*i_order+3, :] = (
+            p_t_inte_res_y[2 * i_order + 1:2 * i_order + 3, :] = (
                 np.array([np.real(qn_y[i_order, :]),
                           np.imag(qn_y[i_order, :])]))
-            p_t_inte_res_eta[2*i_order+1:2*i_order+3, :] = (
+            p_t_inte_res_eta[2 * i_order + 1:2 * i_order + 3, :] = (
                 np.array([np.real(qn_eta[i_order, :]),
                           np.imag(qn_eta[i_order, :])]))
-            p_t_diff_res_y[2*i_order+1:2*i_order+3, :] = (
+            p_t_diff_res_y[2 * i_order + 1:2 * i_order + 3, :] = (
                 np.array([np.real(qn_p_t_y[i_order, :]),
                           np.imag(qn_p_t_y[i_order, :])]))
-            p_t_diff_res_eta[2*i_order+1:2*i_order+3, :] = (
+            p_t_diff_res_eta[2 * i_order + 1:2 * i_order + 3, :] = (
                 np.array([np.real(qn_p_t_eta[i_order, :]),
                           np.imag(qn_p_t_eta[i_order, :])]))
 
-        return(p_t_inte_res_y.transpose(), p_t_inte_res_eta.transpose(),
-               p_t_diff_res_y.transpose(), p_t_diff_res_eta.transpose())
+        return (p_t_inte_res_y, p_t_inte_res_eta,
+                p_t_diff_res_y, p_t_diff_res_eta)
 
     def collect_particle_info(
             self, folder, subfolder_pattern="event-(\d*)",
@@ -712,16 +717,53 @@ class ParticleFilter:
                       file_format)
                 exit(-1)
 
+    def store_spectra_and_flow(
+            self, particle_to_analysis, event_grp, vn_real, vn_imag):
+        """
+            store the particle spectra and flow data into hdf5 file
+        """
+        n_order = self.flow_analyze_order
+        table_names = ['y', 'eta', 'y_pT', 'eta_pT']
+        for i_particle in range(len(particle_to_analysis)):
+            particle_key = particle_to_analysis[i_particle]
+            output_part_grp = event_grp.create_group(particle_key)
+            output_part_grp.create_dataset(
+                "dNdy", data=np.array(vn_real[0][0][i_particle]),
+                compression='gzip')
+            output_part_grp.create_dataset(
+                "dNdeta", data=np.array(vn_real[0][1][i_particle]),
+                compression='gzip')
+            output_part_grp.create_dataset(
+                "dNdydpT", data=np.array(vn_real[0][2][i_particle]),
+                compression='gzip')
+            output_part_grp.create_dataset(
+                "dNdetadpT", data=np.array(vn_real[0][3][i_particle]),
+                compression='gzip')
+            for iorder in range(1, n_order):
+                for itable in range(len(table_names)):
+                    output_part_grp.create_dataset(
+                        "v%d_%s_real" % (iorder, table_names[itable]),
+                        data=np.array(vn_real[iorder][itable][i_particle]),
+                        compression='gzip')
+                    output_part_grp.create_dataset(
+                        "v%d_%s_imag" % (iorder, table_names[itable]),
+                        data=np.array(vn_imag[iorder][itable][i_particle]),
+                        compression='gzip')
+
     def analyze_flow_observables(self, input_filename, output_filename):
         """
             This function performs analysis for single particle spectrum
             and its anisotropy, qn vectors from the hdf5 datafile.
         """
         import h5py
+
         input_h5 = h5py.File("%s.hdf5" % input_filename, 'r')
         output_h5 = h5py.File("%s.hdf5" % output_filename, 'w')
 
-        particle_to_analysis = ['charged', 'pion_p']
+        events_chunk_size = 10000
+        n_order = self.flow_analyze_order
+
+        particle_to_analysis = ['charged', 'pion_p', 'kaon_p', 'proton']
         hydro_event_list = input_h5.keys()
         for i_hydro in range(len(hydro_event_list)):
             print "Analyzing hydro event: %d" % i_hydro
@@ -732,14 +774,28 @@ class ParticleFilter:
                 print "Analyzing UrQMD event: %d" % i_urqmd
                 urqmd_key = urqmd_event_list[i_urqmd]
                 particle_list = input_h5[hydro_key][urqmd_key].keys()
-                output_urqmd_grp = output_hydro_grp.create_group(urqmd_key)
+                initial = 1
+                if i_urqmd % events_chunk_size == 0:
+                    grp_name = ("events_%d-%d"
+                                % (i_urqmd, i_urqmd + events_chunk_size - 1))
+                    output_urqmd_grp = output_hydro_grp.create_group(grp_name)
+                    vn_real = []
+                    vn_imag = []
+                    # vn(y), vn(eta), vn(pT)(y), vn(pT)(eta)
+                    for iorder in range(n_order):
+                        vn_real.append([[], [], [], []])
+                        vn_imag.append([[], [], [], []])
+                    initial = 0
                 for i_particle in range(len(particle_to_analysis)):
                     particle_key = particle_to_analysis[i_particle]
-                    output_part_grp = (
-                        output_urqmd_grp.create_group(particle_key))
+                    if initial == 0:  # add particle species list
+                        for ii in range(4):
+                            for iorder in range(n_order):
+                                vn_real[iorder][ii].append([])
+                                vn_imag[iorder][ii].append([])
+                    data = np.array([])
                     if particle_key == 'charged':
                         i_flag = 0
-                        data = np.array([])
                         for ipart in range(len(self.charged_hadron_list)):
                             part_key = self.charged_hadron_list[ipart]
                             if part_key in particle_list:
@@ -751,46 +807,44 @@ class ParticleFilter:
                                     i_flag = 1
                                 else:
                                     data = np.append(data, data_temp, axis=0)
-                        if len(data) > 0:
-                            n_particles = len(data[:, 0])
-                            output_part_grp.attrs.create(
-                                "N_particles", n_particles)
-                            qn_inte_y, qn_inte_eta, qn_diff_y, qn_diff_eta = (
-                                    self.compute_qn_vectors(data))
-                            output_part_grp.create_dataset(
-                                "Qn_inte", data=qn_inte_y, compression='gzip')
-                            output_part_grp.create_dataset(
-                                "Qn_inte_eta", data=qn_inte_eta,
-                                compression='gzip')
-                            output_part_grp.create_dataset(
-                                "Qn_diff", data=qn_diff_y, compression='gzip')
-                            output_part_grp.create_dataset(
-                                "Qn_diff_eta", data=qn_diff_eta,
-                                compression='gzip')
                     else:
-                        data = np.array([])
                         if particle_key in particle_list:
                             part_grp = (
                                 input_h5[hydro_key][urqmd_key][particle_key])
                             data = part_grp.get('particle_info')
-                        if len(data) > 0:
-                            n_particles = len(data[:, 0])
-                            output_part_grp.attrs.create(
-                                "N_particles", n_particles)
-                            output_part_grp.attrs.create(
-                                "mass", self.mass_pid_dict[particle_key])
-                            qn_inte_y, qn_inte_eta, qn_diff_y, qn_diff_eta = (
-                                self.compute_qn_vectors(data))
-                            output_part_grp.create_dataset(
-                                "Qn_inte", data=qn_inte_y, compression='gzip')
-                            output_part_grp.create_dataset(
-                                "Qn_inte_eta", data=qn_inte_eta,
-                                compression='gzip')
-                            output_part_grp.create_dataset(
-                                "Qn_diff", data=qn_diff_y, compression='gzip')
-                            output_part_grp.create_dataset(
-                                "Qn_diff_eta", data=qn_diff_eta,
-                                compression='gzip')
+                    if len(data) > 0:
+                        qn_inte_y, qn_inte_eta, qn_diff_y, qn_diff_eta = (
+                            self.compute_qn_vectors(data))
+                        for iorder in range(n_order):
+                            vn_real[iorder][0][i_particle].append(
+                                [i_urqmd] + list(qn_inte_y[2 * iorder + 1, :]))
+                            vn_imag[iorder][0][i_particle].append(
+                                [i_urqmd] + list(qn_inte_y[2 * iorder + 2, :]))
+                            vn_real[iorder][1][i_particle].append(
+                                [i_urqmd] + list(
+                                    qn_inte_eta[2 * iorder + 1, :]))
+                            vn_imag[iorder][1][i_particle].append(
+                                [i_urqmd] + list(
+                                    qn_inte_eta[2 * iorder + 2, :]))
+                            vn_real[iorder][2][i_particle].append(
+                                [i_urqmd] + list(qn_diff_y[2 * iorder + 1, :]))
+                            vn_imag[iorder][2][i_particle].append(
+                                [i_urqmd] + list(qn_diff_y[2 * iorder + 2, :]))
+                            vn_real[iorder][3][i_particle].append(
+                                [i_urqmd] + list(
+                                    qn_diff_eta[2 * iorder + 1, :]))
+                            vn_imag[iorder][3][i_particle].append(
+                                [i_urqmd] + list(
+                                    qn_diff_eta[2 * iorder + 2, :]))
+                if i_urqmd % events_chunk_size == events_chunk_size - 1:
+                    self.store_spectra_and_flow(
+                        particle_to_analysis, output_urqmd_grp,
+                        vn_real, vn_imag)
+                    vn_real = []
+                    vn_imag = []
+            if len(vn_real) > 0:
+                self.store_spectra_and_flow(
+                    particle_to_analysis, output_urqmd_grp, vn_real, vn_imag)
         output_h5.flush()
         input_h5.close()
         output_h5.close()
@@ -802,7 +856,7 @@ if __name__ == "__main__":
     except IndexError:
         print("Usage: particle_filter.py folder")
         exit(0)
-    test = ParticleFilter()
+    test = ParticleFilter(enable_sqlite=False)
     test.collect_particle_info(folder, file_format='UrQMD')
     test.analyze_flow_observables('particles', 'analyzed')
     #test = ParticleFilter()
