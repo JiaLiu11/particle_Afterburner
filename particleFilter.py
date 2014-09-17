@@ -66,8 +66,6 @@ class ParticleFilter:
             "eta_prime": 52,
             "gamma": 61,
             "omega782": 65,
-            "eta": 71,
-            "etap": 72,
         }
 
         for aparticle in self.pid_dict.keys():
